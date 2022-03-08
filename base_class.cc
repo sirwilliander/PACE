@@ -118,6 +118,19 @@ class DirectFeedbackSetProblem {
 		double AdjacentEdgeAverage() {
 			return (double)vertex_numb_/(double)edge_number_ ;
 		}
+		
+		//Usage of printToPdf:
+		// ./testDraw | dot -Tpdf > file1.pdf
+		void PrintToPdf(){
+			cout<<"digraph G{"<<endl;
+			for(ListDigraph::ArcIt arc(g);arc!=INVALID;++arc)
+			{
+				ListDigraph::Node x=g.source(arc);
+				ListDigraph::Node y=g.target(arc);
+				cout << g.id(x)<< " -> "<< g.id(y)<<";"<<endl;
+			}
+			cout<<"}"<<endl;
+		}
 
 };
 
@@ -125,10 +138,10 @@ class DirectFeedbackSetProblem {
 int main() {
 	DirectFeedbackSetProblem<int> Test;
 	Test.ReadInput();
-	if(DEBUG) cout << "READ\n";
+	/*if(DEBUG) cout << "READ\n";
 	Test.PrintEdgeList();
-	cout << "AVERAGE ADJACENT VERTICES: " << Test.AdjacentEdgeAverage() << endl;
-	
+	cout << "AVERAGE ADJACENT VERTICES: " << Test.AdjacentEdgeAverage() << endl;*/
+	Test.PrintToPdf();
 }
 
 
