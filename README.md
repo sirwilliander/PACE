@@ -1,4 +1,5 @@
 # PACE
-Our source code for the PACE challenge
+
+Our source code for the PACE challenge.
 
 Some change
