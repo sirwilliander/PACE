@@ -138,15 +138,10 @@ class DirectFeedbackSetProblem {
 
 		
 		void CreateCondensedGraph() {
-			if(DEBUG_CONDENSED) cout << "IN_CONDENSING\n";
 			strongly_connected_num_ = lemon::stronglyConnectedComponents(graph_, strongly_connected_comp_);
-			if(DEBUG_CONDENSED) cout << "ALGORTIHM RUN1\n";
 			AddVerticesToGraph(condensed_graph_, strongly_connected_num_);
-			if(DEBUG_CONDENSED) cout << "ALGORTIHM RUN2\n";
 			lemon::stronglyConnectedCutArcs(graph_, strongly_connected_arcs_);
-			if(DEBUG_CONDENSED) cout << "ALGORTIHM RUN3\n";
 			AddVerticesToGraph(this->condensed_graph_, this->strongly_connected_num_);
-			if(DEBUG_CONDENSED) cout << "ADDED VERTICES\n";
 			for(ListDigraph::ArcIt arc(graph_);arc!=INVALID;++arc) {
 				if(strongly_connected_arcs_[arc]) {
 					condensed_graph_.addArc( 
@@ -154,7 +149,6 @@ class DirectFeedbackSetProblem {
 						condensed_graph_.nodeFromId( strongly_connected_comp_[graph_.target(arc)]));
 				}
 			}
-			if(DEBUG_CONDENSED) cout << "ADDED EDGES\n";
 		}
 	
 };
