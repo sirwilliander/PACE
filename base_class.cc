@@ -62,18 +62,16 @@ class DirectFeedbackSetProblem {
 	private:
 		int vertex_numb_;
 		T edge_number_;  //Can be very big
-		lemon::ListDigraph g;
-		vector<lemon::ListDigraph::Node> Vertices_;	
+		lemon::ListDigraph graph_;
 	
 	public:
-		void AddVertices(int n, bool add_to_memo = false) {
+		void AddVertices(int n) {
 			FOR(i,n) {
-				if(add_to_memo) Vertices_.push_back(g.addNode());
-				else g.addNode();
+				graph_.addNode();
 			}
 		}
 		
-		void ReadInput(istream& in = std::cin, bool from_memo = false) {
+		void ReadInput(istream& in = std::cin) {
 			int temp;
 			in >> vertex_numb_; in >> edge_number_; in >> temp;
 			this->AddVertices(vertex_numb_);
@@ -88,58 +86,53 @@ class DirectFeedbackSetProblem {
 				int adjacent_vert;
 				while (sstream >> adjacent_vert){
 					if(DEBUG) cout << "Adjacent_vert: " << adjacent_vert << endl;
-					if(from_memo) g.addArc(Vertices_[i],Vertices_[adjacent_vert-1]);
-					else g.addArc(g.nodeFromId(i),g.nodeFromId(adjacent_vert-1));
+					graph_.addArc(graph_.nodeFromId(i),graph_.nodeFromId(adjacent_vert-1));
 				}
 			}
 		}
 	
-		void PrintEdgeList(ostream& os = std::cout, bool from_memo = false) {
-			
-			if(from_memo)
-				FOR(i,vertex_numb_) {
-					os << i << ": ";
-					for (ListDigraph::OutArcIt e(g, Vertices_[i]); e != INVALID; ++e) {
-						os << g.id(g.target(e)) << " ";
-					}
-					os << endl;
+		void PrintEdgeList(ostream& os = std::cout) {
+			for (ListDigraph::NodeIt n(graph_); n != INVALID; ++n) {
+				os << graph_.id(n) << ": ";
+				for (ListDigraph::OutArcIt e(graph_, n); e != INVALID; ++e) {
+					os << graph_.id(graph_.target(e)) << " ";
 				}
-			else {
-				for (ListDigraph::NodeIt n(g); n != INVALID; ++n) {
-					os << g.id(n) << ": ";
-					for (ListDigraph::OutArcIt e(g, n); e != INVALID; ++e) {
-						os << g.id(g.target(e)) << " ";
-					}
-					os << endl;
-				}
+				os << endl;
 			}
 		}
 		
 		double AdjacentEdgeAverage() {
 			return (double)edge_number_/(double)vertex_numb_;
 		}
-		
+	
 		//Usage of printToPdf:
 		// ./testDraw | dot -Tpdf > file1.pdf
 		void PrintToPdf(ostream& os = std::cout){
 			os << "digraph G{" << endl;
-			for(ListDigraph::ArcIt arc(g);arc!=INVALID;++arc)
+			for(ListDigraph::ArcIt arc(graph_);arc!=INVALID;++arc)
 			{
-				os << g.id(g.source(arc)) << " -> " << g.id(g.target(arc)) << ";" << endl;
+				os << graph_.id(graph_.source(arc)) << " -> " << graph_.id(graph_.target(arc)) << ";" << endl;
 			}
 			os << "}" << endl;
 		}
-
+	
 };
+
+
+void AddVerticesToGraph(lemon::ListDigraph &g, int n) {
+	FOR(i,n) {
+		g.addNode();
+	}
+}
 
 
 int main() {
 	DirectFeedbackSetProblem<int> Test;
 	Test.ReadInput();
-	/*if(DEBUG) cout << "READ\n";
-	Test.PrintEdgeList();
-	cout << "AVERAGE ADJACENT VERTICES: " << Test.AdjacentEdgeAverage() << endl;*/
-	Test.PrintToPdf();
+	if(DEBUG) cout << "READ\n";
+	if(DEBUG) Test.PrintEdgeList();
+	cout << "AVERAGE ADJACENT VERTICES: " << Test.AdjacentEdgeAverage() << endl;
+	
 }
 
 
