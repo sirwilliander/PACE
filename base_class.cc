@@ -9,12 +9,14 @@
 #include <lemon/adaptors.h>
 #include <lemon/concepts/digraph.h>
 #include <lemon/concepts/path.h>
+#include <lemon/connectivity.h>
 
 using namespace std;
 using namespace lemon;
 
 
 const bool DEBUG = false; //if(DEBUG)
+const bool DEBUG_CONDENSED = false;
 const long long int INF = 10000000000;
 
 using ll = long long int;
@@ -56,6 +58,8 @@ void Print_Matrix_pair(const vector<vector<pair<T,C>>> &M) {
 	}
 }
 
+void AddVerticesToGraph(lemon::ListDigraph &g, int n);
+
 template <typename T>
 class DirectFeedbackSetProblem {
 	
@@ -63,8 +67,14 @@ class DirectFeedbackSetProblem {
 		int vertex_numb_;
 		T edge_number_;  //Can be very big
 		lemon::ListDigraph graph_;
+		
+		lemon::ListDigraph condensed_graph_; 
+		int strongly_connected_num_;
+		lemon::ListDigraph::NodeMap<int> strongly_connected_comp_{graph_};   //ERROR azt hiszi függvény declarálok. () helyett {}-et kell tenni https://stackoverflow.com/questions/13734262/c-difference-between-function-declaration-and-object-initialization
+		lemon::ListDigraph::ArcMap<bool> strongly_connected_arcs_{graph_, false};
 	
 	public:
+		
 		void AddVertices(int n) {
 			FOR(i,n) {
 				graph_.addNode();
@@ -101,19 +111,50 @@ class DirectFeedbackSetProblem {
 			}
 		}
 		
+			
 		double AdjacentEdgeAverage() {
 			return (double)edge_number_/(double)vertex_numb_;
 		}
-	
+		
 		//Usage of printToPdf:
 		// ./testDraw | dot -Tpdf > file1.pdf
-		void PrintToPdf(ostream& os = std::cout){
+		void PrintToPdf(bool condensed = false, ostream& os = std::cout){
 			os << "digraph G{" << endl;
-			for(ListDigraph::ArcIt arc(graph_);arc!=INVALID;++arc)
-			{
-				os << graph_.id(graph_.source(arc)) << " -> " << graph_.id(graph_.target(arc)) << ";" << endl;
+			if(!condensed) {
+				for(ListDigraph::ArcIt arc(graph_);arc!=INVALID;++arc)
+				{
+					os << graph_.id(graph_.source(arc)) << " -> " << graph_.id(graph_.target(arc)) << ";" << endl;
+				}
+				os << "}" << endl;
 			}
-			os << "}" << endl;
+			else {
+				for(ListDigraph::ArcIt arc(condensed_graph_);arc!=INVALID;++arc)
+				{
+					os << condensed_graph_.id(condensed_graph_.source(arc)) << " -> " << condensed_graph_.id(condensed_graph_.target(arc)) << ";" << endl;
+				}
+				os << "}" << endl;
+			}
+		}
+
+		
+		void CreateCondensedGraph() {
+			if(DEBUG_CONDENSED) cout << "IN_CONDENSING\n";
+			strongly_connected_num_ = lemon::stronglyConnectedComponents(graph_, strongly_connected_comp_);
+			if(DEBUG_CONDENSED) cout << "ALGORTIHM RUN1\n";
+			AddVerticesToGraph(condensed_graph_, strongly_connected_num_);
+			if(DEBUG_CONDENSED) cout << "ALGORTIHM RUN2\n";
+			lemon::stronglyConnectedCutArcs(graph_, strongly_connected_arcs_);
+			if(DEBUG_CONDENSED) cout << "ALGORTIHM RUN3\n";
+			AddVerticesToGraph(this->condensed_graph_, this->strongly_connected_num_);
+			if(DEBUG_CONDENSED) cout << "ADDED VERTICES\n";
+			for(ListDigraph::ArcIt arc(graph_);arc!=INVALID;++arc) {
+				if(strongly_connected_arcs_[arc]) {
+					condensed_graph_.addArc( 
+						condensed_graph_.nodeFromId( strongly_connected_comp_[graph_.source(arc)] ),
+						condensed_graph_.nodeFromId( strongly_connected_comp_[graph_.target(arc)]));
+				}
+			}
+			if(DEBUG_CONDENSED) cout << "ADDED EDGES\n";
 		}
 	
 };
@@ -131,8 +172,9 @@ int main() {
 	Test.ReadInput();
 	if(DEBUG) cout << "READ\n";
 	if(DEBUG) Test.PrintEdgeList();
-	cout << "AVERAGE ADJACENT VERTICES: " << Test.AdjacentEdgeAverage() << endl;
-	
+	if(DEBUG) cout << "AVERAGE ADJACENT VERTICES: " << Test.AdjacentEdgeAverage() << endl;
+	Test.CreateCondensedGraph();
+	Test.PrintToPdf(true);
 }
 
 
