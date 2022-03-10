@@ -141,7 +141,6 @@ class DirectFeedbackSetProblem {
 			strongly_connected_num_ = lemon::stronglyConnectedComponents(graph_, strongly_connected_comp_);
 			AddVerticesToGraph(condensed_graph_, strongly_connected_num_);
 			lemon::stronglyConnectedCutArcs(graph_, strongly_connected_arcs_);
-			AddVerticesToGraph(this->condensed_graph_, this->strongly_connected_num_);
 			for(ListDigraph::ArcIt arc(graph_);arc!=INVALID;++arc) {
 				if(strongly_connected_arcs_[arc]) {
 					condensed_graph_.addArc( 
