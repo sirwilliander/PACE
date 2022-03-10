@@ -137,7 +137,7 @@ class DirectFeedbackSetProblem {
 		}
 
 		
-		void CreateCondensedGraph() {
+		int CreateCondensedGraph() {
 			strongly_connected_num_ = lemon::stronglyConnectedComponents(graph_, strongly_connected_comp_);
 			AddVerticesToGraph(condensed_graph_, strongly_connected_num_);
 			lemon::stronglyConnectedCutArcs(graph_, strongly_connected_arcs_);
@@ -148,6 +148,8 @@ class DirectFeedbackSetProblem {
 						condensed_graph_.nodeFromId( strongly_connected_comp_[graph_.target(arc)]));
 				}
 			}
+			
+			return strongly_connected_num_;
 		}
 	
 };
@@ -166,8 +168,8 @@ int main() {
 	if(DEBUG) cout << "READ\n";
 	if(DEBUG) Test.PrintEdgeList();
 	if(DEBUG) cout << "AVERAGE ADJACENT VERTICES: " << Test.AdjacentEdgeAverage() << endl;
-	Test.CreateCondensedGraph();
-	Test.PrintToPdf(true);
+	cout << "CONDENSED GRAPH HAS: " << Test.CreateCondensedGraph() << " vertices\n";
+	//Test.PrintToPdf(true);
 }
 
 
