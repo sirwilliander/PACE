@@ -9,12 +9,14 @@
 #include <lemon/adaptors.h>
 #include <lemon/concepts/digraph.h>
 #include <lemon/concepts/path.h>
+#include <lemon/connectivity.h>
 
 using namespace std;
 using namespace lemon;
 
 
 const bool DEBUG = false; //if(DEBUG)
+const bool DEBUG_CONDENSED = false;
 const long long int INF = 10000000000;
 
 using ll = long long int;
@@ -56,24 +58,30 @@ void Print_Matrix_pair(const vector<vector<pair<T,C>>> &M) {
 	}
 }
 
+void AddVerticesToGraph(lemon::ListDigraph &g, int n);
+
 template <typename T>
 class DirectFeedbackSetProblem {
 	
 	private:
 		int vertex_numb_;
 		T edge_number_;  //Can be very big
-		lemon::ListDigraph g;
-		vector<lemon::ListDigraph::Node> Vertices_;	
+		lemon::ListDigraph graph_;
+		
+		lemon::ListDigraph condensed_graph_; 
+		int strongly_connected_num_;
+		lemon::ListDigraph::NodeMap<int> strongly_connected_comp_{graph_};   //ERROR azt hiszi függvény declarálok. () helyett {}-et kell tenni https://stackoverflow.com/questions/13734262/c-difference-between-function-declaration-and-object-initialization
+		lemon::ListDigraph::ArcMap<bool> strongly_connected_arcs_{graph_, false};
 	
 	public:
-		void AddVertices(int n, bool add_to_memo = false) {
+		
+		void AddVertices(int n) {
 			FOR(i,n) {
-				if(add_to_memo) Vertices_.push_back(g.addNode());
-				else g.addNode();
+				graph_.addNode();
 			}
 		}
 		
-		void ReadInput(istream& in = std::cin, bool from_memo = false) {
+		void ReadInput(istream& in = std::cin) {
 			int temp;
 			in >> vertex_numb_; in >> edge_number_; in >> temp;
 			this->AddVertices(vertex_numb_);
@@ -88,60 +96,79 @@ class DirectFeedbackSetProblem {
 				int adjacent_vert;
 				while (sstream >> adjacent_vert){
 					if(DEBUG) cout << "Adjacent_vert: " << adjacent_vert << endl;
-					if(from_memo) g.addArc(Vertices_[i],Vertices_[adjacent_vert-1]);
-					else g.addArc(g.nodeFromId(i),g.nodeFromId(adjacent_vert-1));
+					graph_.addArc(graph_.nodeFromId(i),graph_.nodeFromId(adjacent_vert-1));
 				}
 			}
 		}
 	
-		void PrintEdgeList(ostream& os = std::cout, bool from_memo = false) {
-			
-			if(from_memo)
-				FOR(i,vertex_numb_) {
-					os << i << ": ";
-					for (ListDigraph::OutArcIt e(g, Vertices_[i]); e != INVALID; ++e) {
-						os << g.id(g.target(e)) << " ";
-					}
-					os << endl;
+		void PrintEdgeList(ostream& os = std::cout) {
+			for (ListDigraph::NodeIt n(graph_); n != INVALID; ++n) {
+				os << graph_.id(n) << ": ";
+				for (ListDigraph::OutArcIt e(graph_, n); e != INVALID; ++e) {
+					os << graph_.id(graph_.target(e)) << " ";
 				}
-			else {
-				for (ListDigraph::NodeIt n(g); n != INVALID; ++n) {
-					os << g.id(n) << ": ";
-					for (ListDigraph::OutArcIt e(g, n); e != INVALID; ++e) {
-						os << g.id(g.target(e)) << " ";
-					}
-					os << endl;
-				}
+				os << endl;
 			}
 		}
 		
+			
 		double AdjacentEdgeAverage() {
-			return (double)vertex_numb_/(double)edge_number_ ;
+			return (double)edge_number_/(double)vertex_numb_;
 		}
 		
 		//Usage of printToPdf:
 		// ./testDraw | dot -Tpdf > file1.pdf
-		void PrintToPdf(){
-			cout<<"digraph G{"<<endl;
-			for(ListDigraph::ArcIt arc(g);arc!=INVALID;++arc)
-			{
-				ListDigraph::Node x=g.source(arc);
-				ListDigraph::Node y=g.target(arc);
-				cout << g.id(x)<< " -> "<< g.id(y)<<";"<<endl;
+		void PrintToPdf(bool condensed = false, ostream& os = std::cout){
+			os << "digraph G{" << endl;
+			if(!condensed) {
+				for(ListDigraph::ArcIt arc(graph_);arc!=INVALID;++arc)
+				{
+					os << graph_.id(graph_.source(arc)) << " -> " << graph_.id(graph_.target(arc)) << ";" << endl;
+				}
+				os << "}" << endl;
 			}
-			cout<<"}"<<endl;
+			else {
+				for(ListDigraph::ArcIt arc(condensed_graph_);arc!=INVALID;++arc)
+				{
+					os << condensed_graph_.id(condensed_graph_.source(arc)) << " -> " << condensed_graph_.id(condensed_graph_.target(arc)) << ";" << endl;
+				}
+				os << "}" << endl;
+			}
 		}
 
+		
+		void CreateCondensedGraph() {
+			strongly_connected_num_ = lemon::stronglyConnectedComponents(graph_, strongly_connected_comp_);
+			AddVerticesToGraph(condensed_graph_, strongly_connected_num_);
+			lemon::stronglyConnectedCutArcs(graph_, strongly_connected_arcs_);
+			AddVerticesToGraph(this->condensed_graph_, this->strongly_connected_num_);
+			for(ListDigraph::ArcIt arc(graph_);arc!=INVALID;++arc) {
+				if(strongly_connected_arcs_[arc]) {
+					condensed_graph_.addArc( 
+						condensed_graph_.nodeFromId( strongly_connected_comp_[graph_.source(arc)] ),
+						condensed_graph_.nodeFromId( strongly_connected_comp_[graph_.target(arc)]));
+				}
+			}
+		}
+	
 };
+
+
+void AddVerticesToGraph(lemon::ListDigraph &g, int n) {
+	FOR(i,n) {
+		g.addNode();
+	}
+}
 
 
 int main() {
 	DirectFeedbackSetProblem<int> Test;
 	Test.ReadInput();
-	/*if(DEBUG) cout << "READ\n";
-	Test.PrintEdgeList();
-	cout << "AVERAGE ADJACENT VERTICES: " << Test.AdjacentEdgeAverage() << endl;*/
-	Test.PrintToPdf();
+	if(DEBUG) cout << "READ\n";
+	if(DEBUG) Test.PrintEdgeList();
+	if(DEBUG) cout << "AVERAGE ADJACENT VERTICES: " << Test.AdjacentEdgeAverage() << endl;
+	Test.CreateCondensedGraph();
+	Test.PrintToPdf(true);
 }
 
 
