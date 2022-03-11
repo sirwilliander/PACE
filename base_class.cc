@@ -116,6 +116,34 @@ class DirectFeedbackSetProblem {
 			return (double)edge_number_/(double)vertex_numb_;
 		}
 		
+		int CreateCondensedGraph() {
+			strongly_connected_num_ = lemon::stronglyConnectedComponents(graph_, strongly_connected_comp_);
+			AddVerticesToGraph(condensed_graph_, strongly_connected_num_);
+			lemon::stronglyConnectedCutArcs(graph_, strongly_connected_arcs_);
+			for(ListDigraph::ArcIt arc(graph_);arc!=INVALID;++arc) {
+				if(strongly_connected_arcs_[arc]) {
+					condensed_graph_.addArc( 
+						condensed_graph_.nodeFromId( strongly_connected_comp_[graph_.source(arc)] ),
+						condensed_graph_.nodeFromId( strongly_connected_comp_[graph_.target(arc)]));
+				}
+			}
+			
+			return strongly_connected_num_;
+		}
+
+		vector<int> StronglyConnectedSizes() {
+			vector<int> strongly_conn_sizes(strongly_connected_num_, 0);
+			for (ListDigraph::NodeIt n(graph_); n != INVALID; ++n) {
+				++strongly_conn_sizes[strongly_connected_comp_[n]];
+			}
+			
+			return strongly_conn_sizes;
+		}
+
+		bool IsDAG() {
+			return lemon::dag(graph_);
+		}		
+
 		//Usage of printToPdf:
 		// ./testDraw | dot -Tpdf > file1.pdf
 		void PrintToPdf(bool condensed = false, ostream& os = std::cout){
@@ -137,24 +165,6 @@ class DirectFeedbackSetProblem {
 		}
 
 		
-		int CreateCondensedGraph() {
-			strongly_connected_num_ = lemon::stronglyConnectedComponents(graph_, strongly_connected_comp_);
-			AddVerticesToGraph(condensed_graph_, strongly_connected_num_);
-			lemon::stronglyConnectedCutArcs(graph_, strongly_connected_arcs_);
-			for(ListDigraph::ArcIt arc(graph_);arc!=INVALID;++arc) {
-				if(strongly_connected_arcs_[arc]) {
-					condensed_graph_.addArc( 
-						condensed_graph_.nodeFromId( strongly_connected_comp_[graph_.source(arc)] ),
-						condensed_graph_.nodeFromId( strongly_connected_comp_[graph_.target(arc)]));
-				}
-			}
-			
-			return strongly_connected_num_;
-		}
-	
-		bool IsDAG() {
-			return lemon::dag(graph_);
-		}
 
 };
 
@@ -173,6 +183,9 @@ int main() {
 	if(DEBUG) Test.PrintEdgeList();
 	if(DEBUG) cout << "AVERAGE ADJACENT VERTICES: " << Test.AdjacentEdgeAverage() << endl;
 	cout << "CONDENSED GRAPH HAS: " << Test.CreateCondensedGraph() << " vertices\n";
+	vector<int> st_conn_sizes = Test.StronglyConnectedSizes();
+	Print_vector(st_conn_sizes);
+	cout << "Largest component: " << *max_element(all(st_conn_sizes)) << endl;
 	//Test.PrintToPdf(true);
 }
 
@@ -183,5 +196,4 @@ int main() {
 3
 4
 1
-
 */
