@@ -152,6 +152,10 @@ class DirectFeedbackSetProblem {
 			return strongly_connected_num_;
 		}
 	
+		bool IsDAG() {
+			return lemon::dag(graph_);
+		}
+
 };
 
 
