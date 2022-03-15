@@ -10,9 +10,12 @@
 #include <lemon/concepts/digraph.h>
 #include <lemon/concepts/path.h>
 #include <lemon/connectivity.h>
+#include <tuple>
 
 using namespace std;
 using namespace lemon;
+
+
 
 
 const bool DEBUG = false; //if(DEBUG)
@@ -58,6 +61,20 @@ void Print_Matrix_pair(const vector<vector<pair<T,C>>> &M) {
 	}
 }
 
+struct Node_pair{
+	ListDigraph::Node u;
+	ListDigraph::Node v;
+	
+	
+	/*bool operator<(const Node_pair& x){ const
+		return std::tie(u,v)<std::tie(x.u,x.v);
+	}*/
+};
+
+bool operator <(const Node_pair& x, const Node_pair& y){
+		return tie(x.u,x.v) < tie(y.u,y.v);
+	}
+
 void AddVerticesToGraph(lemon::ListDigraph &g, int n);
 
 template <typename T>
@@ -65,9 +82,9 @@ class DirectFeedbackSetProblem {
 	
 	private:
 		int vertex_numb_;
-		T edge_number_;  //Can be very big
+		T arc_number_;  //Can be very big
 		lemon::ListDigraph graph_;
-		
+		vector<lemon::ListDigraph::Node> solution;
 		lemon::ListDigraph condensed_graph_; 
 		int strongly_connected_num_;
 		lemon::ListDigraph::NodeMap<int> strongly_connected_comp_{graph_};   //ERROR azt hiszi függvény declarálok. () helyett {}-et kell tenni https://stackoverflow.com/questions/13734262/c-difference-between-function-declaration-and-object-initialization
@@ -83,7 +100,7 @@ class DirectFeedbackSetProblem {
 		
 		void ReadInput(istream& in = std::cin) {
 			int temp;
-			in >> vertex_numb_; in >> edge_number_; in >> temp;
+			in >> vertex_numb_; in >> arc_number_; in >> temp;
 			this->AddVertices(vertex_numb_);
 			
 			string t; std::getline(in, t); //There is the first endline with \n
@@ -113,7 +130,7 @@ class DirectFeedbackSetProblem {
 		
 			
 		double AdjacentEdgeAverage() {
-			return (double)edge_number_/(double)vertex_numb_;
+			return (double)arc_number_/(double)vertex_numb_;
 		}
 		
 		int CreateCondensedGraph() {
@@ -163,6 +180,61 @@ class DirectFeedbackSetProblem {
 				os << "}" << endl;
 			}
 		}
+		
+		void DeleteSelfLoops(ostream& os = std::cout){
+			int i=0;
+			for(ListDigraph::ArcIt arc(graph_);arc!=INVALID;++arc)
+				{
+					if(graph_.source(arc)==graph_.target(arc)){
+						solution.push_back(graph_.source(arc));
+						graph_.erase(graph_.source(arc));
+						++i;
+						//Mit csinál, ha olyan archoz ér az iterálásban, aminek egyik végét kitöröltük?	
+					}
+				}
+			os<<"Number of deleted nodes:"<<i <<endl;
+		}
+		
+		void DeleteParallelArcs(ostream& os = std::cout){
+			int i=0;
+			map<Node_pair, int> m;
+			Node_pair np;
+			/*Erre az elso forra ha jól olvastam nincsen szükség
+			for(ListDigraph::ArcIt arc(graph_);arc!=INVALID;++arc)
+				{
+					np.u=graph_.source(arc);
+					np.v=graph_.taget(arc);
+					m[np]=0;
+				}*/
+				
+			for(ListDigraph::ArcIt arc(graph_);arc!=INVALID;++arc){
+					np.u=graph_.source(arc);
+					np.v=graph_.target(arc);
+					++m[np];
+					if(m[np]>=2){
+						graph_.erase(arc);
+						++i;
+					}
+				}
+			
+			os<<"Number of deleted arcs:"<<i <<endl;
+		}
+		void ReduceGraph(){
+			bool loop_free=loopFree(graph_);
+			bool parallel_free=parallelFree(graph_);
+			if(loop_free&&parallel_free)
+				return;
+			else{ 
+				if(!loop_free){
+					DeleteSelfLoops();
+				}
+				if(!parallel_free){
+					DeleteParallelArcs();
+				}
+			}
+		}
+		
+		
 
 		
 
@@ -179,14 +251,15 @@ void AddVerticesToGraph(lemon::ListDigraph &g, int n) {
 int main() {
 	DirectFeedbackSetProblem<int> Test;
 	Test.ReadInput();
-	if(DEBUG) cout << "READ\n";
+	/*if(DEBUG) cout << "READ\n";
 	if(DEBUG) Test.PrintEdgeList();
 	if(DEBUG) cout << "AVERAGE ADJACENT VERTICES: " << Test.AdjacentEdgeAverage() << endl;
 	cout << "CONDENSED GRAPH HAS: " << Test.CreateCondensedGraph() << " vertices\n";
 	vector<int> st_conn_sizes = Test.StronglyConnectedSizes();
 	Print_vector(st_conn_sizes);
-	cout << "Largest component: " << *max_element(all(st_conn_sizes)) << endl;
+	cout << "Largest component: " << *max_element(all(st_conn_sizes)) << endl;*/
 	//Test.PrintToPdf(true);
+	Test.ReduceGraph();
 }
 
 
