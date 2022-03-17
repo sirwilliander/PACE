@@ -11,7 +11,7 @@
 #include <lemon/concepts/path.h>
 #include <lemon/connectivity.h>
 #include <tuple>
-
+#include <set> 
 using namespace std;
 using namespace lemon;
 
@@ -183,15 +183,18 @@ class DirectFeedbackSetProblem {
 		
 		void DeleteSelfLoops(ostream& os = std::cout){
 			int i=0;
-			for(ListDigraph::ArcIt arc(graph_);arc!=INVALID;++arc)
-				{
-					if(graph_.source(arc)==graph_.target(arc)){
-						solution.push_back(graph_.source(arc));
-						graph_.erase(graph_.source(arc));
-						++i;
-						//Mit csinál, ha olyan archoz ér az iterálásban, aminek egyik végét kitöröltük?	
-					}
+			set<int> toBeDeleted;
+			for(ListDigraph::ArcIt arc(graph_);arc!=INVALID;++arc){
+				if(graph_.source(arc)==graph_.target(arc)){
+					toBeDeleted.insert(graph_.id(graph_.source(arc)));
 				}
+			}
+			for(set<int>::iterator it=toBeDeleted.begin(); it!=toBeDeleted.end(); ++it){
+				solution.push_back(graph_.nodeFromId(*it));
+				graph_.erase(graph_.nodeFromId(*it));
+				++i;
+			}
+			
 			os<<"Number of deleted nodes:"<<i <<endl;
 		}
 		
