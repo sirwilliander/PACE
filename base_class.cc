@@ -84,7 +84,7 @@ class DirectFeedbackSetProblem {
 		int vertex_numb_;
 		T arc_number_;  //Can be very big
 		lemon::ListDigraph graph_;
-		vector<lemon::ListDigraph::Node> solution;
+		vector<lemon::ListDigraph::Node> solution_;
 		lemon::ListDigraph condensed_graph_; 
 		int strongly_connected_num_;
 		lemon::ListDigraph::NodeMap<int> strongly_connected_comp_{graph_};   //ERROR azt hiszi függvény declarálok. () helyett {}-et kell tenni https://stackoverflow.com/questions/13734262/c-difference-between-function-declaration-and-object-initialization
@@ -92,9 +92,26 @@ class DirectFeedbackSetProblem {
 	
 	public:
 		
+		DirectFeedbackSetProblem(istream &is = std::cin) {
+			ReadInput(is);
+			strongly_connected_num_ = 0;
+		}
+		
+		void PrintGraphInfos(ostream& os = std::cout) {
+			os << "VERTEX NUMBER: " << vertex_numb_ << endl;
+			os << "ARC NUMBER: " << arc_number_ << endl;
+		}
+		
 		void AddVertices(int n) {
 			FOR(i,n) {
 				graph_.addNode();
+			}
+		}
+		
+		template <class C>
+		void DeleteVertices(C to_be_deleted) {
+			for(ListDigraph::Node &v : to_be_deleted) {
+				graph_.erase(v);
 			}
 		}
 		
@@ -127,8 +144,7 @@ class DirectFeedbackSetProblem {
 				os << endl;
 			}
 		}
-		
-			
+					
 		double AdjacentEdgeAverage() {
 			return (double)arc_number_/(double)vertex_numb_;
 		}
@@ -149,6 +165,7 @@ class DirectFeedbackSetProblem {
 		}
 
 		vector<int> StronglyConnectedSizes() {
+			if(strongly_connected_num_ == 0) CreateCondensedGraph();
 			vector<int> strongly_conn_sizes(strongly_connected_num_, 0);
 			for (ListDigraph::NodeIt n(graph_); n != INVALID; ++n) {
 				++strongly_conn_sizes[strongly_connected_comp_[n]];
@@ -163,7 +180,7 @@ class DirectFeedbackSetProblem {
 
 		//Usage of printToPdf:
 		// ./testDraw | dot -Tpdf > file1.pdf
-		void PrintToPdf(bool condensed = false, ostream& os = std::cout){
+		void PrintToPdf(bool condensed = false, ostream& os = std::cout) {
 			os << "digraph G{" << endl;
 			if(!condensed) {
 				for(ListDigraph::ArcIt arc(graph_);arc!=INVALID;++arc)
@@ -181,65 +198,122 @@ class DirectFeedbackSetProblem {
 			}
 		}
 		
-		void DeleteSelfLoops(ostream& os = std::cout){
-			int i=0;
+		int DeleteSelfLoops() {
+			int i = 0;
 			set<int> toBeDeleted;
-			for(ListDigraph::ArcIt arc(graph_);arc!=INVALID;++arc){
+			for(ListDigraph::ArcIt arc(graph_);arc!=INVALID;++arc) {
 				if(graph_.source(arc)==graph_.target(arc)){
 					toBeDeleted.insert(graph_.id(graph_.source(arc)));
+					--arc_number_;
 				}
 			}
-			for(set<int>::iterator it=toBeDeleted.begin(); it!=toBeDeleted.end(); ++it){
-				solution.push_back(graph_.nodeFromId(*it));
+			for(set<int>::iterator it=toBeDeleted.begin(); it!=toBeDeleted.end(); ++it) {
+				solution_.push_back(graph_.nodeFromId(*it));
 				graph_.erase(graph_.nodeFromId(*it));
+				--vertex_numb_;
 				++i;
 			}
 			
-			os<<"Number of deleted nodes:"<<i <<endl;
+			return i;
 		}
 		
-		void DeleteParallelArcs(ostream& os = std::cout){
-			int i=0;
+		int DeleteParallelArcs() {
+			int i = 0;
 			map<Node_pair, int> m;
 			Node_pair np;
-			/*Erre az elso forra ha jól olvastam nincsen szükség
-			for(ListDigraph::ArcIt arc(graph_);arc!=INVALID;++arc)
-				{
-					np.u=graph_.source(arc);
-					np.v=graph_.taget(arc);
-					m[np]=0;
-				}*/
-				
+							
 			for(ListDigraph::ArcIt arc(graph_);arc!=INVALID;++arc){
 					np.u=graph_.source(arc);
 					np.v=graph_.target(arc);
 					++m[np];
 					if(m[np]>=2){
 						graph_.erase(arc);
+						--arc_number_;
 						++i;
 					}
 				}
 			
-			os<<"Number of deleted arcs:"<<i <<endl;
+			return i;
 		}
-		void ReduceGraph(){
-			bool loop_free=loopFree(graph_);
-			bool parallel_free=parallelFree(graph_);
-			if(loop_free&&parallel_free)
-				return;
-			else{ 
-				if(!loop_free){
-					DeleteSelfLoops();
+				
+		int DeleteDummyNodes() {
+			//Nodes without ingoing or outgoing arcs
+			vector<ListDigraph::Node> to_be_deleted;
+			
+			for (ListDigraph::NodeIt n(graph_); n != INVALID; ++n) {
+				int out = 0;
+				for (ListDigraph::OutArcIt a(graph_, n); a != INVALID; ++a) {
+					++out;
 				}
-				if(!parallel_free){
-					DeleteParallelArcs();
+				
+				int in = 0;
+				for (ListDigraph::InArcIt a(graph_, n); a != INVALID; ++a) {
+					++in;
+				}
+								
+				if(!in || !out) {
+					to_be_deleted.push_back(n);
+					--vertex_numb_;
+					arc_number_ -= (in+out);
 				}
 			}
+			
+			DeleteVertices(to_be_deleted);
+			
+			return to_be_deleted.size();
 		}
 		
+		int DeleteChainingNodes() {
+			//Nodes without ingoing or outgoing arcs
+			vector<ListDigraph::Node> to_be_deleted;
+			
+			for (ListDigraph::NodeIt n(graph_); n != INVALID; ++n) {
+				int out = 0;
+				for (ListDigraph::OutArcIt a(graph_, n); a != INVALID; ++a) {
+					++out;
+				}
+				
+				int in = 0;
+				for (ListDigraph::InArcIt a(graph_, n); a != INVALID; ++a) {
+					++in;
+				}
+								
+				if(in == 1 && in == out) {
+					to_be_deleted.push_back(n);
+					--vertex_numb_;
+					--arc_number_;
+				}
+			}
+			
+			for(ListDigraph::Node &v : to_be_deleted) {
+				ListDigraph::Arc out_arc = ListDigraph::OutArcIt (graph_, v);
+				ListDigraph::Arc in_arc = ListDigraph::InArcIt (graph_, v);
+				
+				ListDigraph::Node u_next = graph_.target(out_arc);
+				ListDigraph::Node u_prev = graph_.source(in_arc);
+				
+				graph_.addArc(u_prev, u_next);
+				graph_.erase(v);				
+			}
+			
+			return to_be_deleted.size();
+		}
 		
-
-		
+		void ReduceGraph(){
+			bool loop_free = lemon::loopFree(graph_);
+			bool parallel_free = lemon::parallelFree(graph_);
+							
+			if(!loop_free){
+				DeleteSelfLoops();
+			}
+			
+			if(!parallel_free){
+				DeleteParallelArcs();
+			}
+			
+			while(DeleteDummyNodes() || DeleteChainingNodes());
+		}
+				
 
 };
 
@@ -253,7 +327,6 @@ void AddVerticesToGraph(lemon::ListDigraph &g, int n) {
 
 int main() {
 	DirectFeedbackSetProblem<int> Test;
-	Test.ReadInput();
 	/*if(DEBUG) cout << "READ\n";
 	if(DEBUG) Test.PrintEdgeList();
 	if(DEBUG) cout << "AVERAGE ADJACENT VERTICES: " << Test.AdjacentEdgeAverage() << endl;
@@ -262,7 +335,11 @@ int main() {
 	Print_vector(st_conn_sizes);
 	cout << "Largest component: " << *max_element(all(st_conn_sizes)) << endl;*/
 	//Test.PrintToPdf(true);
+	Test.PrintGraphInfos();
 	Test.ReduceGraph();
+	cout << "AFTER REDUCING\n";
+	Test.PrintGraphInfos();
+	Print_vector(Test.StronglyConnectedSizes());
 }
 
 
