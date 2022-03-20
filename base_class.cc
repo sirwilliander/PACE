@@ -16,8 +16,6 @@ using namespace std;
 using namespace lemon;
 
 
-
-
 const bool DEBUG = false; //if(DEBUG)
 const bool DEBUG_CONDENSED = false;
 const long long int INF = 10000000000;
@@ -75,12 +73,22 @@ bool operator <(const Node_pair& x, const Node_pair& y){
 		return tie(x.u,x.v) < tie(y.u,y.v);
 	}
 
+template <typename T>
+struct less_than_key
+{
+    inline bool operator() (const pair<T, ListDigraph::Node>& struct1, const pair<T, ListDigraph::Node>& struct2)
+    {
+        return (struct1.first > struct2.first);
+    }
+};
+
 void AddVerticesToGraph(lemon::ListDigraph &g, int n);
 
 template <typename T>
 class DirectFeedbackSetProblem {
 	
 	private:
+		int original_vertex_numb_;
 		int vertex_numb_;
 		T arc_number_;  //Can be very big
 		lemon::ListDigraph graph_;
@@ -94,12 +102,18 @@ class DirectFeedbackSetProblem {
 		
 		DirectFeedbackSetProblem(istream &is = std::cin) {
 			ReadInput(is);
+			original_vertex_numb_ = vertex_numb_;
 			strongly_connected_num_ = 0;
 		}
 		
 		void PrintGraphInfos(ostream& os = std::cout) {
+			vertex_numb_ = 0;
+			for (ListDigraph::NodeIt n(graph_); n != INVALID; ++n) ++vertex_numb_;
 			os << "VERTEX NUMBER: " << vertex_numb_ << endl;
+			arc_number_ = 0;
+			for(ListDigraph::ArcIt arc(graph_);arc!=INVALID;++arc) ++arc_number_;
 			os << "ARC NUMBER: " << arc_number_ << endl;
+			os << "SOL and VERTEX NUMBER: " << (double)solution_.size()/original_vertex_numb_ << endl;
 		}
 		
 		void AddVertices(int n) {
@@ -264,7 +278,7 @@ class DirectFeedbackSetProblem {
 		}
 		
 		int DeleteChainingNodes() {
-			//Nodes without ingoing or outgoing arcs
+			//Nodes with only one ingoing and one outgoing edges
 			vector<ListDigraph::Node> to_be_deleted;
 			
 			for (ListDigraph::NodeIt n(graph_); n != INVALID; ++n) {
@@ -293,7 +307,7 @@ class DirectFeedbackSetProblem {
 				ListDigraph::Node u_prev = graph_.source(in_arc);
 				
 				graph_.addArc(u_prev, u_next);
-				graph_.erase(v);				
+				graph_.erase(v);
 			}
 			
 			return to_be_deleted.size();
@@ -313,8 +327,50 @@ class DirectFeedbackSetProblem {
 			
 			while(DeleteDummyNodes() || DeleteChainingNodes());
 		}
+			
+		
+		
+		//Heuristic Algorithms
+		
+		int InAndOutGoingArcs(ListDigraph:: Node v, int caser = 1) {
+			int out = 0;
+			for (ListDigraph::OutArcIt a(graph_, v); a != INVALID; ++a) {
+				++out;
+			}
 				
-
+			int in = 0;
+			for (ListDigraph::InArcIt a(graph_, v); a != INVALID; ++a) {
+				++in;
+			}
+			
+			switch(caser) {
+				case 1: return out+in; break;
+				case 2: return in; break;
+				case 3: return out;
+			}
+		}
+		
+		int LargestVerticesDeletion(int caser = 1, int recalculate = 1) {
+			// std::function<int(ListDigraph::Node)> Fitness = &InAndOutGoingArcs
+			//	Will delete vertices ordered by their fitnesses until the graph is acyclic.
+			//	Recalculate the fitness after every "recalculate" vertices has been deleted
+			
+			//auto& Fitness = InAndOutGoingArcs; //Currently only works on this function
+			while(!IsDAG()) {
+				vector<pair<int, ListDigraph::Node>> fitnesses;
+				for (ListDigraph::NodeIt n(graph_); n != INVALID; ++n) {
+					fitnesses.push_back(make_pair(InAndOutGoingArcs(n, caser), n));
+				}
+				//std::transform(ListDigraph::NodeIt (graph_), INVALID, std::back_inserter(fitnesses), [this](ListDigraph::Node v){return make_pair(InAndOutGoingArcs(v), v);} );
+				std::sort(all(fitnesses), less_than_key<int>());
+				FOR(i,recalculate) {
+					solution_.push_back(fitnesses[i].second);
+					graph_.erase(fitnesses[i].second);
+				}
+			}
+			
+			return solution_.size();
+		}
 };
 
 
@@ -340,6 +396,10 @@ int main() {
 	cout << "AFTER REDUCING\n";
 	Test.PrintGraphInfos();
 	Print_vector(Test.StronglyConnectedSizes());
+	cout << "HEURISTICS: \n";
+	int h_size = Test.LargestVerticesDeletion(1, 10);
+	cout << h_size << endl;
+	Test.PrintGraphInfos();
 }
 
 
