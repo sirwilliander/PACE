@@ -12,6 +12,8 @@
 #include <lemon/connectivity.h>
 #include <tuple>
 #include <set> 
+#include <lemon/preflow.h>
+
 using namespace std;
 using namespace lemon;
 
@@ -90,7 +92,7 @@ class DirectFeedbackSetProblem {
 	private:
 		int original_vertex_numb_;
 		int vertex_numb_;
-		T arc_number_;  //Can be very big
+		T arc_numb_;  //Can be very big
 		lemon::ListDigraph graph_;
 		vector<lemon::ListDigraph::Node> solution_;
 		lemon::ListDigraph condensed_graph_; 
@@ -110,9 +112,9 @@ class DirectFeedbackSetProblem {
 			vertex_numb_ = 0;
 			for (ListDigraph::NodeIt n(graph_); n != INVALID; ++n) ++vertex_numb_;
 			os << "VERTEX NUMBER: " << vertex_numb_ << endl;
-			arc_number_ = 0;
-			for(ListDigraph::ArcIt arc(graph_);arc!=INVALID;++arc) ++arc_number_;
-			os << "ARC NUMBER: " << arc_number_ << endl;
+			arc_numb_ = 0;
+			for(ListDigraph::ArcIt arc(graph_);arc!=INVALID;++arc) ++arc_numb_;
+			os << "ARC NUMBER: " << arc_numb_ << endl;
 			os << "SOL and VERTEX NUMBER: " << (double)solution_.size()/original_vertex_numb_ << endl;
 		}
 		
@@ -131,7 +133,7 @@ class DirectFeedbackSetProblem {
 		
 		void ReadInput(istream& in = std::cin) {
 			int temp;
-			in >> vertex_numb_; in >> arc_number_; in >> temp;
+			in >> vertex_numb_; in >> arc_numb_; in >> temp;
 			this->AddVertices(vertex_numb_);
 			
 			string t; std::getline(in, t); //There is the first endline with \n
@@ -160,7 +162,7 @@ class DirectFeedbackSetProblem {
 		}
 					
 		double AdjacentEdgeAverage() {
-			return (double)arc_number_/(double)vertex_numb_;
+			return (double)arc_numb_/(double)vertex_numb_;
 		}
 		
 		int CreateCondensedGraph() {
@@ -218,7 +220,7 @@ class DirectFeedbackSetProblem {
 			for(ListDigraph::ArcIt arc(graph_);arc!=INVALID;++arc) {
 				if(graph_.source(arc)==graph_.target(arc)){
 					toBeDeleted.insert(graph_.id(graph_.source(arc)));
-					--arc_number_;
+					--arc_numb_;
 				}
 			}
 			for(set<int>::iterator it=toBeDeleted.begin(); it!=toBeDeleted.end(); ++it) {
@@ -242,7 +244,7 @@ class DirectFeedbackSetProblem {
 					++m[np];
 					if(m[np]>=2){
 						graph_.erase(arc);
-						--arc_number_;
+						--arc_numb_;
 						++i;
 					}
 				}
@@ -268,7 +270,7 @@ class DirectFeedbackSetProblem {
 				if(!in || !out) {
 					to_be_deleted.push_back(n);
 					--vertex_numb_;
-					arc_number_ -= (in+out);
+					arc_numb_ -= (in+out);
 				}
 			}
 			
@@ -295,7 +297,7 @@ class DirectFeedbackSetProblem {
 				if(in == 1 && in == out) {
 					to_be_deleted.push_back(n);
 					--vertex_numb_;
-					--arc_number_;
+					--arc_numb_;
 				}
 			}
 			
@@ -313,6 +315,57 @@ class DirectFeedbackSetProblem {
 			return to_be_deleted.size();
 		}
 		
+		
+		
+		int PetalOne(){
+			//Deletion of a node which is contained in exactly one cycle
+			int i=0; // If there is a cycle which has only petal=1 nodes, then at least one of them has to stay. So we delete during the for cycle
+			bool del=0;
+			ListDigraph::Node deletable;
+			ListDigraph::ArcMap<int> cap(graph_);
+			for (ListDigraph::ArcIt arc(graph_); arc != INVALID; ++arc)
+				cap[arc]=1;
+			for (ListDigraph::NodeIt node(graph_); node != INVALID; ++node) {
+				if(del){
+					graph_.erase(deletable);
+					del=0;
+				}
+				
+				ListDigraph::Node u = graph_.split(node, false);
+				
+				//One way
+				lemon::Preflow< ListDigraph > my_flow1(graph_,cap,u,node);
+				my_flow1.init();
+				my_flow1.startFirstPhase();
+				int flow_value1=my_flow1.flowValue();
+				
+				//And the other
+				Preflow< ListDigraph > my_flow2(graph_,cap,node,u);
+				my_flow2.init();
+				my_flow2.startFirstPhase();
+				int flow_value2=my_flow2.flowValue();
+				graph_.contract(node, u, true);
+				
+				if(flow_value1+flow_value2==1){
+					int counter1=0;
+					int counter2=0;
+					for (ListDigraph::InArcIt x(graph_,node); x != INVALID; ++x) {
+						++counter1;
+						for (ListDigraph::OutArcIt y(graph_,node); y != INVALID; ++y){
+							++counter2;
+							graph_.addArc(graph_.source(x),graph_.target(y));
+						}
+					}			
+					deletable=node;
+					del=true;
+					++i;
+					--vertex_numb_;
+					arc_numb_=arc_numb_+counter1*counter2-counter1-counter2;
+				}
+			}
+			return i;	
+		}
+		
 		void ReduceGraph(){
 			bool loop_free = lemon::loopFree(graph_);
 			bool parallel_free = lemon::parallelFree(graph_);
@@ -326,6 +379,9 @@ class DirectFeedbackSetProblem {
 			}
 			
 			while(DeleteDummyNodes() || DeleteChainingNodes());
+			//May there be parallel arcs after chaining the nodes?
+			PetalOne();
+
 		}
 			
 		
