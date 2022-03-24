@@ -406,19 +406,21 @@ class DirectFeedbackSetProblem {
 			}
 		}
 		
-		int LargestVerticesDeletion(int caser = 1, int recalculate = 1) {
-			// std::function<int(ListDigraph::Node)> Fitness = &InAndOutGoingArcs
+		template <typename V, typename F>
+		int LargestVerticesDeletion(F Fitness, int caser = 1, int recalculate = 1) {
+			// Fitness has two input Node and int
 			//	Will delete vertices ordered by their fitnesses until the graph is acyclic.
-			//	Recalculate the fitness after every "recalculate" vertices has been deleted
+			//	Recalculate the fitness after every "recalculate" number of vertices has been deleted
+			// The fitnesses elements has type V
 			
 			//auto& Fitness = InAndOutGoingArcs; //Currently only works on this function
 			while(!IsDAG()) {
-				vector<pair<int, ListDigraph::Node>> fitnesses;
+				vector<pair<V, ListDigraph::Node>> fitnesses;
 				for (ListDigraph::NodeIt n(graph_); n != INVALID; ++n) {
-					fitnesses.push_back(make_pair(InAndOutGoingArcs(n, caser), n));
+					fitnesses.push_back(make_pair((this->*Fitness)(n, caser), n));
 				}
-				//std::transform(ListDigraph::NodeIt (graph_), INVALID, std::back_inserter(fitnesses), [this](ListDigraph::Node v){return make_pair(InAndOutGoingArcs(v), v);} );
-				std::sort(all(fitnesses), less_than_key<int>());
+				//std::transform(ListDigraph::NodeIt (graph_), INVALID, std::back_inserter(fitnesses), [&](ListDigraph::Node v){return make_pair((this->*Fitness)(v, caser), v);} );
+				std::sort(all(fitnesses), [](pair<V, ListDigraph::Node> &struct1, pair<V, ListDigraph::Node> &struct2){return (struct1.first > struct2.first);});
 				FOR(i,recalculate) {
 					solution_.push_back(fitnesses[i].second);
 					graph_.erase(fitnesses[i].second);
@@ -453,7 +455,7 @@ int main() {
 	Test.PrintGraphInfos();
 	Print_vector(Test.StronglyConnectedSizes());
 	cout << "HEURISTICS: \n";
-	int h_size = Test.LargestVerticesDeletion(1, 10);
+	int h_size = Test.LargestVerticesDeletion<int>(&DirectFeedbackSetProblem<int>::InAndOutGoingArcs, 1, 10);
 	cout << h_size << endl;
 	Test.PrintGraphInfos();
 }
