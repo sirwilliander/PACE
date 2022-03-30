@@ -13,6 +13,7 @@
 #include <tuple>
 #include <set> 
 #include <lemon/preflow.h>
+#include <lemon/lp.h>
 
 using namespace std;
 using namespace lemon;
@@ -64,11 +65,6 @@ void Print_Matrix_pair(const vector<vector<pair<T,C>>> &M) {
 struct Node_pair{
 	ListDigraph::Node u;
 	ListDigraph::Node v;
-	
-	
-	/*bool operator<(const Node_pair& x){ const
-		return std::tie(u,v)<std::tie(x.u,x.v);
-	}*/
 };
 
 bool operator <(const Node_pair& x, const Node_pair& y){
@@ -107,6 +103,8 @@ class DirectFeedbackSetProblem {
 			original_vertex_numb_ = vertex_numb_;
 			strongly_connected_num_ = 0;
 		}
+		
+		
 		
 		void PrintGraphInfos(ostream& os = std::cout) {
 			vertex_numb_ = 0;
@@ -363,6 +361,8 @@ class DirectFeedbackSetProblem {
 					arc_numb_=arc_numb_+counter1*counter2-counter1-counter2;
 				}
 			}
+			if(del)
+				graph_.erase(deletable);
 			return i;	
 		}
 		
@@ -384,7 +384,90 @@ class DirectFeedbackSetProblem {
 
 		}
 			
+		//LP based methods
 		
+    bool solveMIP(){ 
+    lemon::Timer t(1);
+    
+    /*for(lemon::ListDigraph::ArcIt a(graph_);a!=lemon::INVALID;++a){
+       int i=graph_.id(graph_.source(a));
+       int j=graph_.id(graph_.target(a));
+       cout<<i<<" "<<j	<<endl;	
+     }*/
+     
+    typedef lemon::Mip Mip;
+    Mip mip;
+
+    /*auto env = mip.cplexEnv();
+    CPXsetintparam(env, CPX_PARAM_THREADS, 1);*/
+    
+    const int M = 1000000;
+
+    vector<Mip::Col> x;
+    vector<Mip::Col> y;
+    /*for(lemon::ListDigraph::NodeIt u(graph_);u!=lemon::INVALID;++u){
+      x.push_back(mip.addCol());
+      y.push_back(mip.addCol());
+      }*/
+      
+     
+      
+      for(int i=0;i<original_vertex_numb_;++i){
+      x.push_back(mip.addCol());
+      y.push_back(mip.addCol());
+      }
+
+    for(int i=0;i<x.size();++i){
+  	mip.colLowerBound(x[i],0);
+	mip.colUpperBound(x[i],1);
+	mip.colLowerBound(y[i],0);
+	mip.colUpperBound(y[i],vertex_numb_);
+	}
+
+    for(int i=0;i<x.size();++i){
+      mip.colType(x[i], Mip::INTEGER);
+    	mip.colType(y[i], Mip::INTEGER);
+    }
+
+
+    for(lemon::ListDigraph::ArcIt a(graph_);a!=lemon::INVALID;++a){
+       int i=graph_.id(graph_.source(a));
+       //cout<<i<<endl;
+       int j=graph_.id(graph_.target(a));
+      // cout<<j	<<endl;	
+       Mip::Expr expr=y[i]-y[j]+1-(1-x[i])*M -(1-x[j])*M;
+       
+     	mip.addRow(expr<=0);
+     }
+     
+        Mip::Expr maxNum;
+     for(int i=0;i<x.size();++i){
+      maxNum+=x[i];
+      }
+
+	mip.max();
+	mip.obj(maxNum);
+	mip.solve();
+
+    mip.solve();
+    
+    int counter=0;
+    for(lemon::ListDigraph::NodeIt u(graph_);u!=lemon::INVALID;++u){
+     if(mip.sol(x[graph_.id(u)])==1)
+     	counter++;
+      }
+
+      std::cout << "IP done in " << t.userTime() << "s" << std::endl;
+  // Print the results
+  if (mip.type() == Mip::OPTIMAL|| mip.type() == Mip::FEASIBLE) {
+    cout << "Legkevesebb pont amit törölni kell: " << vertex_numb_-counter << std::endl;
+  }
+   else {
+    std::cout << "Optimal solution not found." << std::endl;
+  }
+    
+    return mip.type() == Mip::OPTIMAL || mip.type() == Mip::FEASIBLE;
+  }
 		
 		//Heuristic Algorithms
 		
@@ -453,11 +536,12 @@ int main() {
 	Test.ReduceGraph();
 	cout << "AFTER REDUCING\n";
 	Test.PrintGraphInfos();
-	Print_vector(Test.StronglyConnectedSizes());
-	cout << "HEURISTICS: \n";
+	//Print_vector(Test.StronglyConnectedSizes());
+	/*cout << "HEURISTICS: \n";
 	int h_size = Test.LargestVerticesDeletion<int>(&DirectFeedbackSetProblem<int>::InAndOutGoingArcs, 1, 10);
 	cout << h_size << endl;
-	Test.PrintGraphInfos();
+	Test.PrintGraphInfos();*/
+	bool b=Test.solveMIP();
 }
 
 
