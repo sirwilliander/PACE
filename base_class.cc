@@ -429,23 +429,105 @@ class DirectFeedbackSetProblem {
 	mip.obj(maxNum);
 	mip.solve();
 
-    mip.solve();
-    
-    int counter=0;
-    for(lemon::ListDigraph::NodeIt u(graph_);u!=lemon::INVALID;++u){
-     if(mip.sol(x[graph_.id(u)])==1)
-     	counter++;
-      }
 
       std::cout << "IP done in " << t.userTime() << "s" << std::endl;
   // Print the results
   if (mip.type() == Mip::OPTIMAL|| mip.type() == Mip::FEASIBLE) {
-    cout << "Legkevesebb pont amit törölni kell: " << vertex_numb_-counter << std::endl;
+    cout << "Legkevesebb pont amit törölni kell: " << vertex_numb_-mip.solValue() << endl;
+
   }
    else {
     std::cout << "Optimal solution not found." << std::endl;
   }
     
+    return mip.type() == Mip::OPTIMAL || mip.type() == Mip::FEASIBLE;
+  }
+  
+  bool solveMIP2(){
+   
+    lemon::Timer t(1);
+    t.restart();
+
+    Mip mip;
+ 
+    const int M = 1000000;
+
+    map<int, vector<Mip::Col> > x;
+    for(lemon::ListDigraph::NodeIt u(graph_);u!=lemon::INVALID;++u){
+   	for(int i=0;i<vertex_numb_;++i)
+    		x[graph_.id(u)].push_back(mip.addCol());
+    }
+   
+
+    for(lemon::ListDigraph::NodeIt u(graph_);u!=lemon::INVALID;++u){
+  	  for(int i=0;i<vertex_numb_;++i){
+ 		 mip.colLowerBound(x[graph_.id(u)][i],0);
+		mip.colUpperBound(x[graph_.id(u)][i],1);
+	}
+	}	
+
+    for(lemon::ListDigraph::NodeIt u(graph_);u!=lemon::INVALID;++u){
+    	for(int i=0;i<vertex_numb_;++i)
+      		mip.colType(x[graph_.id(u)][i], Mip::INTEGER);
+    }
+
+    for(lemon::ListDigraph::NodeIt u(graph_);u!=lemon::INVALID;++u){
+  	Mip::Expr expr;
+  	for(int i=0;i<vertex_numb_;++i){
+ 	 expr+=x[graph_.id(u)][i];
+ 	 }
+ 	 mip.addRow(expr<=1);
+    }
+  
+    for(int i=0;i<vertex_numb_;++i){
+	   for(lemon::ListDigraph::NodeIt u(graph_);u!=lemon::INVALID;++u){
+		  Mip::Expr expr;
+		  expr+=x[graph_.id(u)][i];
+		  mip.addRow(expr<=1);
+	   }
+    }
+
+ int counter=0;
+    for(lemon::ListDigraph::ArcIt a(graph_);a!=lemon::INVALID;++a){
+       int j=graph_.id(graph_.source(a));
+       int k=graph_.id(graph_.target(a));
+        for(int i=0;i<vertex_numb_;++i){			
+            for(int l=0;l<i;++l){
+           // cout<< ++counter<<endl;
+            	Mip::Expr expr;
+            	expr=x[k][l]-(1-x[j][i])*M;
+                mip.addRow(expr<=0);
+            }
+        }
+     }
+
+        Mip::Expr maxNum;
+    for(lemon::ListDigraph::NodeIt u(graph_);u!=lemon::INVALID;++u){
+        for(int i=0;i<vertex_numb_;++i){
+            maxNum+=x[graph_.id(u)][i];
+        }
+      }
+ cout<<"Itt"<<endl;
+mip.max();
+mip.obj(maxNum);
+mip.solve();
+
+   
+    /*int counter=0;
+    for(lemon::ListDigraph::NodeIt u(graph_);u!=lemon::INVALID;++u){
+     if(mip.sol(x[graph_.id(u)])==1)
+      counter++;
+      }*/
+
+      std::cout << "IP done in " << t.userTime() << "s" << std::endl;
+  // Print the results
+  if (mip.type() == Mip::OPTIMAL|| mip.type() == Mip::FEASIBLE) {
+    cout << "Legkevesebb pont amit törölni kell: " << mip.solValue() << std::endl;
+  }
+   else {
+    std::cout << "Optimal solution not found." << std::endl;
+  }
+   
     return mip.type() == Mip::OPTIMAL || mip.type() == Mip::FEASIBLE;
   }
 		
@@ -522,6 +604,7 @@ int main() {
 	cout << h_size << endl;
 	Test.PrintGraphInfos();*/
 	bool b=Test.solveMIP();
+	bool c=Test.solveMIP2();
 }
 
 
