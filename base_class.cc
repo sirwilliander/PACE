@@ -71,6 +71,7 @@ bool operator <(const Node_pair& x, const Node_pair& y){
 		return tie(x.u,x.v) < tie(y.u,y.v);
 	}
 
+
 template <typename T>
 struct less_than_key
 {
@@ -312,9 +313,7 @@ class DirectFeedbackSetProblem {
 			
 			return to_be_deleted.size();
 		}
-		
-		
-		
+			
 		int PetalOne(){
 			//Deletion of a node which is contained in exactly one cycle
 			int i=0; // If there is a cycle which has only petal=1 nodes, then at least one of them has to stay. So we delete during the for cycle
@@ -387,62 +386,43 @@ class DirectFeedbackSetProblem {
 		//LP based methods
 		
     bool solveMIP(){ 
+    
     lemon::Timer t(1);
-    
-    /*for(lemon::ListDigraph::ArcIt a(graph_);a!=lemon::INVALID;++a){
-       int i=graph_.id(graph_.source(a));
-       int j=graph_.id(graph_.target(a));
-       cout<<i<<" "<<j	<<endl;	
-     }*/
-     
-    typedef lemon::Mip Mip;
-    Mip mip;
 
-    /*auto env = mip.cplexEnv();
-    CPXsetintparam(env, CPX_PARAM_THREADS, 1);*/
-    
+    Mip mip;
+  
     const int M = 1000000;
 
-    vector<Mip::Col> x;
-    vector<Mip::Col> y;
-    /*for(lemon::ListDigraph::NodeIt u(graph_);u!=lemon::INVALID;++u){
-      x.push_back(mip.addCol());
-      y.push_back(mip.addCol());
-      }*/
-      
-     
-      
-      for(int i=0;i<original_vertex_numb_;++i){
-      x.push_back(mip.addCol());
-      y.push_back(mip.addCol());
+    map<int, Mip::Col> x;
+    map<int, Mip::Col> y;
+    for(lemon::ListDigraph::NodeIt u(graph_);u!=lemon::INVALID;++u){
+      x[graph_.id(u)]=mip.addCol();
+      y[graph_.id(u)]=mip.addCol();
       }
 
-    for(int i=0;i<x.size();++i){
-  	mip.colLowerBound(x[i],0);
-	mip.colUpperBound(x[i],1);
-	mip.colLowerBound(y[i],0);
-	mip.colUpperBound(y[i],vertex_numb_);
+    for(lemon::ListDigraph::NodeIt u(graph_);u!=lemon::INVALID;++u){
+  	mip.colLowerBound(x[graph_.id(u)],0);
+	mip.colUpperBound(x[graph_.id(u)],1);
+	mip.colLowerBound(y[graph_.id(u)],0);
+	mip.colUpperBound(y[graph_.id(u)],vertex_numb_);
 	}
 
-    for(int i=0;i<x.size();++i){
-      mip.colType(x[i], Mip::INTEGER);
-    	mip.colType(y[i], Mip::INTEGER);
+    for(lemon::ListDigraph::NodeIt u(graph_);u!=lemon::INVALID;++u){
+      mip.colType(x[graph_.id(u)], Mip::INTEGER);
+    	mip.colType(y[graph_.id(u)], Mip::INTEGER);
     }
-
 
     for(lemon::ListDigraph::ArcIt a(graph_);a!=lemon::INVALID;++a){
        int i=graph_.id(graph_.source(a));
-       //cout<<i<<endl;
-       int j=graph_.id(graph_.target(a));
-      // cout<<j	<<endl;	
+       int j=graph_.id(graph_.target(a));	
        Mip::Expr expr=y[i]-y[j]+1-(1-x[i])*M -(1-x[j])*M;
        
      	mip.addRow(expr<=0);
      }
      
         Mip::Expr maxNum;
-     for(int i=0;i<x.size();++i){
-      maxNum+=x[i];
+    for(lemon::ListDigraph::NodeIt u(graph_);u!=lemon::INVALID;++u){
+      maxNum+=x[graph_.id(u)];
       }
 
 	mip.max();
