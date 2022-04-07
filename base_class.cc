@@ -92,7 +92,7 @@ class DirectFeedbackSetProblem {
 		T arc_numb_;  //Can be very big
 		lemon::ListDigraph graph_;
 		lemon::ListDigraph::NodeMap<bool> solution_{graph_};
-		int solutionSize_;
+		int solution_size_;
 		lemon::ListDigraph condensed_graph_;
 		int strongly_connected_num_;
 		lemon::ListDigraph::NodeMap<int> strongly_connected_comp_{graph_};   //ERROR azt hiszi fĂźggvĂŠny declarĂĄlok. () helyett {}-et kell tenni https://stackoverflow.com/questions/13734262/c-difference-between-function-declaration-and-object-initialization
@@ -100,11 +100,9 @@ class DirectFeedbackSetProblem {
 
 	public:
 
-		DirectFeedbackSetProblem(istream &is = std::cin) {
+		DirectFeedbackSetProblem(istream &is = std::cin) : solution_size_{0}, strongly_connected_num_{0} {
 			ReadInput(is);
 			original_vertex_numb_ = vertex_numb_;
-			solutionSize_=0;
-			strongly_connected_num_ = 0;
 		}
 
 
@@ -116,7 +114,7 @@ class DirectFeedbackSetProblem {
 			arc_numb_ = 0;
 			for(ListDigraph::ArcIt arc(graph_);arc!=INVALID;++arc) ++arc_numb_;
 			os << "ARC NUMBER: " << arc_numb_ << endl;
-			os << "SOL and VERTEX NUMBER: " << (double)solutionSize_/original_vertex_numb_ << endl;
+			os << "SOL and VERTEX NUMBER: " << (double)solution_size_/original_vertex_numb_ << endl;
 		}
 
 		void AddVertices(int n) {
@@ -226,7 +224,7 @@ class DirectFeedbackSetProblem {
 			}
 			for(set<int>::iterator it=toBeDeleted.begin(); it!=toBeDeleted.end(); ++it) {
 				solution_[graph_.nodeFromId(*it)]=1;
-				solutionSize_++;
+				solution_size_++;
 				graph_.erase(graph_.nodeFromId(*it));
 				--vertex_numb_;
 				++i;
@@ -388,66 +386,118 @@ class DirectFeedbackSetProblem {
 
 		//LP based methods
 
-    bool solveMIP(){
+		 bool SolveMIP() {
 
-    lemon::Timer t(1);
+			 lemon::Timer t(1);
 
-    Mip mip;
+			 Mip mip;
 
-    const int M = 1000000;
+			 const int M = 1000000;
 
-    map<int, Mip::Col> x;
-    map<int, Mip::Col> y;
-    for(lemon::ListDigraph::NodeIt u(graph_);u!=lemon::INVALID;++u){
-      x[graph_.id(u)]=mip.addCol();
-      y[graph_.id(u)]=mip.addCol();
-      }
+			 map < int, Mip::Col > x; //In or Out of solution
+			 map < int, Mip::Col > y; //Potential, against cycles
+			 for (lemon::ListDigraph::NodeIt u(graph_); u != lemon::INVALID; ++u) {
+					 x[graph_.id(u)] = mip.addCol();
+					 y[graph_.id(u)] = mip.addCol();
+			 }
 
-    for(lemon::ListDigraph::NodeIt u(graph_);u!=lemon::INVALID;++u){
-  	mip.colLowerBound(x[graph_.id(u)],0);
-	mip.colUpperBound(x[graph_.id(u)],1);
-	mip.colLowerBound(y[graph_.id(u)],0);
-	mip.colUpperBound(y[graph_.id(u)],vertex_numb_);
-	}
+			 for (lemon::ListDigraph::NodeIt u(graph_); u != lemon::INVALID; ++u) {
+					 mip.colLowerBound(x[graph_.id(u)], 0);
+					 mip.colUpperBound(x[graph_.id(u)], 1);
+					 mip.colLowerBound(y[graph_.id(u)], 0);
+					 mip.colUpperBound(y[graph_.id(u)], vertex_numb_);
+			 }
 
-    for(lemon::ListDigraph::NodeIt u(graph_);u!=lemon::INVALID;++u){
-      mip.colType(x[graph_.id(u)], Mip::INTEGER);
-    	mip.colType(y[graph_.id(u)], Mip::INTEGER);
-    }
+			 for (lemon::ListDigraph::NodeIt u(graph_); u != lemon::INVALID; ++u) {
+					 mip.colType(x[graph_.id(u)], Mip::INTEGER);
+					 //mip.colType(y[graph_.id(u)], Mip::INTEGER);
+			 }
 
-    for(lemon::ListDigraph::ArcIt a(graph_);a!=lemon::INVALID;++a){
-       int i=graph_.id(graph_.source(a));
-       int j=graph_.id(graph_.target(a));
-       Mip::Expr expr=y[i]-y[j]+1-(1-x[i])*M -(1-x[j])*M;
+			 for (lemon::ListDigraph::ArcIt a(graph_); a != lemon::INVALID; ++a) {
+					 int i = graph_.id(graph_.source(a));
+					 int j = graph_.id(graph_.target(a));
+					 Mip::Expr expr = y[i] - y[j] + 1 - (1 - x[i]) * M - (1 - x[j]) * M;
 
-     	mip.addRow(expr<=0);
-     }
+					 mip.addRow(expr <= 0);
+			 }
 
-        Mip::Expr maxNum;
-    for(lemon::ListDigraph::NodeIt u(graph_);u!=lemon::INVALID;++u){
-      maxNum+=x[graph_.id(u)];
-      }
+			 Mip::Expr maxNum;
+			 for (lemon::ListDigraph::NodeIt u(graph_); u != lemon::INVALID; ++u) {
+					maxNum += x[graph_.id(u)];
+					//if(x[graph_.id(u)] == 1) {solution_[u] = true; ++solution_size_;}
+			 }
 
-	mip.max();
-	mip.obj(maxNum);
-	mip.solve();
+			 mip.max();
+			 mip.obj(maxNum);
+			 mip.solve();
 
+			 std::cout << "IP done in " << t.userTime() << "s" << std::endl;
+			 // Print the results
+			 if (mip.type() == Mip::OPTIMAL || mip.type() == Mip::FEASIBLE) {
+					cout << "Legkevesebb pont amit törölni kell: " << vertex_numb_ - mip.solValue() << endl;
 
-      std::cout << "IP done in " << t.userTime() << "s" << std::endl;
-  // Print the results
-  if (mip.type() == Mip::OPTIMAL|| mip.type() == Mip::FEASIBLE) {
-    cout << "Legkevesebb pont amit tĂśrĂślni kell: " << vertex_numb_-mip.solValue() << endl;
+			 } else {
+					std::cout << "Optimal solution not found." << std::endl;
+			 }
 
-  }
-   else {
-    std::cout << "Optimal solution not found." << std::endl;
-  }
+			 return mip.type() == Mip::OPTIMAL || mip.type() == Mip::FEASIBLE;
+		 }
+		
+		
+		bool SolveLP() {
 
-    return mip.type() == Mip::OPTIMAL || mip.type() == Mip::FEASIBLE;
-  }
+			 lemon::Timer t(1);
 
+			 Lp lp;
+
+			 const int M = 1000000;
+
+			 map < int, Lp::Col > x; //In or Out of solution
+			 map < int, Lp::Col > y; //Potential, against cycles
+			 for (lemon::ListDigraph::NodeIt u(graph_); u != lemon::INVALID; ++u) {
+					 x[graph_.id(u)] = lp.addCol();
+					 y[graph_.id(u)] = lp.addCol();
+			 }
+
+			 for (lemon::ListDigraph::NodeIt u(graph_); u != lemon::INVALID; ++u) {
+					 lp.colLowerBound(x[graph_.id(u)], 0);
+					 lp.colUpperBound(x[graph_.id(u)], 1);
+					 lp.colLowerBound(y[graph_.id(u)], 0);
+					 lp.colUpperBound(y[graph_.id(u)], vertex_numb_);
+			 }
+			 
+			 for (lemon::ListDigraph::ArcIt a(graph_); a != lemon::INVALID; ++a) {
+					 int i = graph_.id(graph_.source(a));
+					 int j = graph_.id(graph_.target(a));
+					 Lp::Expr expr = y[i] - y[j] + 1 - (1 - x[i]) * M - (1 - x[j]) * M;
+
+					 lp.addRow(expr <= 0);
+			 }
+
+			 Lp::Expr maxNum;
+			 for (lemon::ListDigraph::NodeIt u(graph_); u != lemon::INVALID; ++u) {
+					maxNum += x[graph_.id(u)];
+					//if(x[graph_.id(u)] == 1) {solution_[u] = true; ++solution_size_;}
+			 }
+
+			 lp.max();
+			 lp.obj(maxNum);
+			 lp.solve();
+
+			 std::cout << "IP done in " << t.userTime() << "s" << std::endl;
+			 // Print the results
+			 if (lp.primalType() == Lp::OPTIMAL || lp.primalType() == Lp::FEASIBLE) {
+					cout << "Legkevesebb pont amit törölni kell: " << vertex_numb_ - lp.primal() << endl;
+
+			 } else {
+					std::cout << "Optimal solution not found." << std::endl;
+			 }
+
+			 return lp.primalType() == Lp::OPTIMAL || lp.primalType() == Lp::FEASIBLE;
+		 }
   //Executes trivial improving
-  bool ImproveSolution(){
+  /*
+   bool ImproveSolution(){
 
      /* ListDigraph
       NodeMap<> */
@@ -484,8 +534,8 @@ class DirectFeedbackSetProblem {
   }
   	if(counter>0)
   		return true;
-  	return false;*/
-  }
+  	return false;
+  }*/
 
 		//Heuristic Algorithms
 
@@ -524,12 +574,12 @@ class DirectFeedbackSetProblem {
 				std::sort(all(fitnesses), [](pair<V, ListDigraph::Node> &struct1, pair<V, ListDigraph::Node> &struct2){return (struct1.first > struct2.first);});
 				FOR(i,recalculate) {
 					solution_[fitnesses[i].second]=1;
-					solutionSize_++;
+					solution_size_++;
 					graph_.erase(fitnesses[i].second);
 				}
 			}
 
-			return solutionSize_;
+			return solution_size_;
 		}
 };
 
@@ -560,6 +610,7 @@ int main() {
 	int h_size = Test.LargestVerticesDeletion<int>(&DirectFeedbackSetProblem<int>::InAndOutGoingArcs, 1, 10);
 	cout << h_size << endl;
 	Test.PrintGraphInfos();*/
-	bool b=Test.solveMIP();
+	bool b=Test.SolveMIP();
+	Test.SolveLP();
 
 }
