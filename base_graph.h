@@ -82,7 +82,9 @@ public:
 
 	// LP based methods
 	bool SolveMIP();
+	bool SolveMIP2();
 	bool SolveLP();
+	bool SolveLP2();
 	bool SolveMIPSCC();
 	// int LargestVerticesDeletion(F Fitness, int caser = 1, int recalculate = 1);
 };
