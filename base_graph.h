@@ -51,23 +51,27 @@ private:
 
 public:
 	DirectFeedbackSetProblem(istream &is = std::cin);
+	DirectFeedbackSetProblem(string file_name);
 
 	void AddVertices(int n);
 
 	template <class C>
 	void DeleteVertices(C to_be_deleted);
 
+	// Read + Print
 	void ReadInput(istream &in = std::cin);
+	void ReadFromFile(string file_name);
 	void PrintGraphInfos(ostream &os = std::cout);
 	void PrintEdgeList(ostream &os = std::cout);
-	double AdjacentEdgeAverage();
-	int CreateCondensedGraph();
-	vector<int> StronglyConnectedSizes();
-	bool IsDAG();
-
 	//Usage of printToPdf:
 	// ./testDraw | dot -Tpdf > file1.pdf
 	void PrintToPdf(bool condensed = false, ostream &os = std::cout);
+
+	double AdjacentEdgeAverage();
+	int CreateCondensedGraph();
+	vector<int> StronglyConnectedSizes();
+	bool IsDAG();	
+	int InAndOutGoingArcs(ListDigraph::Node v, int caser = 1);
 
 	int DeleteSelfLoops();
 	int DeleteParallelArcs();
@@ -79,7 +83,7 @@ public:
 	// LP based methods
 	bool SolveMIP();
 	bool SolveLP();
-	int InAndOutGoingArcs(ListDigraph::Node v, int caser = 1);
+	bool SolveMIPSCC();
 	// int LargestVerticesDeletion(F Fitness, int caser = 1, int recalculate = 1);
 };
 
