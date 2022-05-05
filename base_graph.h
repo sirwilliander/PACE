@@ -41,6 +41,7 @@ class DirectFeedbackSetProblem
 private:
 	int original_vertex_numb_;
 	int vertex_numb_;
+
 	T arc_numb_; //Can be very big
 	lemon::ListDigraph graph_;
 	vector<lemon::ListDigraph::Node> solution_;
@@ -48,6 +49,7 @@ private:
 	int strongly_connected_num_;
 	lemon::ListDigraph::NodeMap<int> strongly_connected_comp_{graph_};
 	lemon::ListDigraph::ArcMap<bool> strongly_connected_arcs_{graph_, false};
+	vector<vector<ListDigraph::Node>> cycles_to_dodge_;
 
 public:
 	DirectFeedbackSetProblem(istream &is = std::cin);
@@ -70,7 +72,7 @@ public:
 	double AdjacentEdgeAverage();
 	int CreateCondensedGraph();
 	vector<int> StronglyConnectedSizes();
-	bool IsDAG();	
+	bool IsDAG();
 	int InAndOutGoingArcs(ListDigraph::Node v, int caser = 1);
 
 	int DeleteSelfLoops();
@@ -82,11 +84,22 @@ public:
 
 	// LP based methods
 	bool SolveMIP();
-	bool SolveMIP2();
 	bool SolveLP();
-	bool SolveLP2();
 	bool SolveMIPSCC();
 	// int LargestVerticesDeletion(F Fitness, int caser = 1, int recalculate = 1);
+
+	// Cutting plane methods
+	bool SolveIPWithoutCycles();
+	bool CycleWithDepthFirstSearch();
+	bool CycleWithDepthFirstSearch(ListDigraph::NodeMap<bool> &VerticesIn);
+	bool DepthFirstSearchStep(int &SZ, int &S, int M, ListDigraph::Node current_node, ListDigraph::NodeMap<int> &eleresi_szam,
+							  ListDigraph::NodeMap<ListDigraph::Node> &parent, ListDigraph::NodeMap<int> &befejezesi_szam,
+							  ListDigraph::NodeMap<bool> &VerticesIn, ListDigraph::NodeMap<int> &melyseg);
+	bool BackGoingArc(ListDigraph::Arc &arc, ListDigraph::NodeMap<int> &eleresi_szam, ListDigraph::NodeMap<int> &befejezesi_szam,
+					  ListDigraph::NodeMap<bool> &VerticesIn);
+	bool AddCycle(ListDigraph::Node &node_from, ListDigraph::Node &back_edge_target,
+				  ListDigraph::NodeMap<ListDigraph::Node> &parent, ListDigraph::NodeMap<bool> &ready);
+	int debug_numb_=0;
 };
 
 #endif
