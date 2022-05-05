@@ -74,7 +74,14 @@ public:
 	vector<int> StronglyConnectedSizes();
 	bool IsDAG();
 	int InAndOutGoingArcs(ListDigraph::Node v, int caser = 1);
-
+	
+	void LoopThroughCycle(ListDigraph::Node from, ListDigraph::Node to, lemon::ListDigraph::NodeMap<ListDigraph::Node> &parents, lemon::ListDigraph::NodeMap<int>& heuristic_cycle_count);
+	void DFSWithLoopHeuristic(lemon::ListDigraph::NodeMap<int>& heuristic_cycle_count);
+	void DepthFirstSearchStep(int &SZ, int &S, ListDigraph::Node current_node, lemon::ListDigraph::NodeMap<int> &reach,
+                                                       lemon::ListDigraph::NodeMap<ListDigraph::Node> &parent, lemon::ListDigraph::NodeMap<int> &processed);
+	bool BackGoingArc(ListDigraph::Arc &arc, ListDigraph::NodeMap<int> &reach, ListDigraph::NodeMap<int> &processed);
+	int HeuristicLargestVerticesDeletion(int caser = 1, int recalculate = 1);
+	
 	int DeleteSelfLoops();
 	int DeleteParallelArcs();
 	int DeleteDummyNodes();
