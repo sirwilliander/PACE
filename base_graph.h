@@ -99,7 +99,10 @@ public:
 					  ListDigraph::NodeMap<bool> &VerticesIn);
 	bool AddCycle(ListDigraph::Node &node_from, ListDigraph::Node &back_edge_target,
 				  ListDigraph::NodeMap<ListDigraph::Node> &parent, ListDigraph::NodeMap<bool> &ready);
-	int debug_numb_=0;
+	void FindBackAndForthEdges();
+	void Find3LongPaths();
+
+
 };
 
 #endif

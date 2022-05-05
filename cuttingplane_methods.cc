@@ -5,6 +5,9 @@ template <typename T>
 bool DirectFeedbackSetProblem<T>::SolveIPWithoutCycles()
 {
     lemon::Timer t(1);
+
+    FindBackAndForthEdges();
+
     Mip mip;
     // const int M = vertex_numb_;
     map<int, Mip::Col> x; //In or Out of solution
@@ -40,10 +43,12 @@ bool DirectFeedbackSetProblem<T>::SolveIPWithoutCycles()
     mip.max();
     mip.obj(maxNum);
 
-    bool is_there_cycle = 0;
+    bool is_there_cycle = 1;
     int iter_num = 0;
-    while (iter_num < 1)
+    int cyc_numb = 0; // For counting the number of new cycles
+    while (is_there_cycle)
     {
+        cyc_numb = cycles_to_dodge_.size();
         mip.solve();
         if (mip.type() == Mip::OPTIMAL || mip.type() == Mip::FEASIBLE)
         {
@@ -74,6 +79,17 @@ bool DirectFeedbackSetProblem<T>::SolveIPWithoutCycles()
             std::cout << "Optimal solution not found." << std::endl;
         }
 
+        // Add new cycles as constraints
+        for (int i = cyc_numb; i < cycles_to_dodge_.size(); ++i)
+        {
+            Mip::Expr expr;
+            for (auto &nodeiter : cycles_to_dodge_[i])
+            {
+                int i = graph_.id(nodeiter);
+                expr = expr + (1 - x[i]);
+            }
+            mip.addRow(expr >= 1);
+        }
         iter_num++;
     }
     return is_there_cycle;
@@ -195,7 +211,6 @@ bool DirectFeedbackSetProblem<T>::AddCycle(ListDigraph::Node &node_from, ListDig
     }
     cycles_to_dodge_.push_back(newcycle);
 
-    // Print new cycle
     cout << "New cycle: ";
     for (auto &pathiter : newcycle)
     {
@@ -205,6 +220,30 @@ bool DirectFeedbackSetProblem<T>::AddCycle(ListDigraph::Node &node_from, ListDig
 
     return 0;
 }
+
+template <typename T>
+void DirectFeedbackSetProblem<T>::FindBackAndForthEdges()
+{
+    for (lemon::ListDigraph::ArcIt a(graph_); a != INVALID; ++a)
+    {
+        if (graph_.id(graph_.target(a)) < graph_.id(graph_.source(a)))
+        {
+            ListDigraph::Arc b = findArc(graph_, graph_.target(a), graph_.source(a));
+            if (b != INVALID)
+            {
+                vector<ListDigraph::Node> newcyc;
+                newcyc.push_back(graph_.target(a));
+                newcyc.push_back(graph_.source(a));
+                cycles_to_dodge_.push_back(newcyc);
+            }
+        }
+    }
+}
+
+
+template <typename T>
+void DirectFeedbackSetProblem<T>::Find3LongPaths()
+
 
 //
 //
