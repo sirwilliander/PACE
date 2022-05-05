@@ -6,7 +6,7 @@ bool DirectFeedbackSetProblem<T>::SolveIPWithoutCycles()
 {
     lemon::Timer t(1);
     Mip mip;
-    const int M = vertex_numb_;
+    // const int M = vertex_numb_;
     map<int, Mip::Col> x; //In or Out of solution
     for (lemon::ListDigraph::NodeIt u(graph_); u != lemon::INVALID; ++u)
     {
@@ -23,13 +23,15 @@ bool DirectFeedbackSetProblem<T>::SolveIPWithoutCycles()
     }
     for (auto &cyc : cycles_to_dodge_)
     {
-        for (auto &pathiter : cyc)
+        Mip::Expr expr;
+        for (auto &nodeiter : cyc)
         {
-            int i = graph_.id(pathiter);
-            Mip::Expr expr = expr + (1 - x[i]);
-            mip.addRow(expr >= 1);
+            int i = graph_.id(nodeiter);
+            expr = expr + (1 - x[i]);
         }
+        mip.addRow(expr >= 1);
     }
+
     Mip::Expr maxNum;
     for (lemon::ListDigraph::NodeIt u(graph_); u != lemon::INVALID; ++u)
     {
@@ -38,47 +40,50 @@ bool DirectFeedbackSetProblem<T>::SolveIPWithoutCycles()
     mip.max();
     mip.obj(maxNum);
 
+    bool is_there_cycle = 0;
     int iter_num = 0;
-    while (iter_num < 10)
+    while (iter_num < 1)
     {
         mip.solve();
         if (mip.type() == Mip::OPTIMAL || mip.type() == Mip::FEASIBLE)
         {
             lemon::ListDigraph::NodeMap<bool> VerticesIn(graph_, false);
+            cout << "iternum: " << iter_num << ", mip sol: ";
             for (lemon::ListDigraph::NodeIt u(graph_); u != lemon::INVALID; ++u)
             {
-                if (mip.sol(x[graph_.id(u)]) == 1)
+                cout << mip.sol(x[graph_.id(u)]) << " ";
+                if (mip.sol(x[graph_.id(u)]) > 0.9)
                 {
-                    cout << mip.sol(x[graph_.id(u)]);
+                    //cout << graph_.id(u) << " ";
                     VerticesIn[u] = true;
                 }
             }
-            CycleWithDepthFirstSearch(VerticesIn, graph_.nodeFromId(0));
+            cout << endl;
+            is_there_cycle = CycleWithDepthFirstSearch(VerticesIn);
         }
-        iter_num++;
 
         // Print the results
         if (mip.type() == Mip::OPTIMAL || mip.type() == Mip::FEASIBLE)
         {
-            std::cout << "IP kész, " << cycles_to_dodge_.size() << " db kör kizárva. " << t.userTime() << "s" << std::endl;
+            std::cout << endl
+                      << "IP kész, " << cycles_to_dodge_.size() << " db kör kizárva. " << t.userTime() << "s" << std::endl;
             cout << "Legkevesebb pont amit törölni kell: " << vertex_numb_ - mip.solValue() << endl;
         }
         else
         {
             std::cout << "Optimal solution not found." << std::endl;
         }
-        return mip.type() == Mip::OPTIMAL || mip.type() == Mip::FEASIBLE;
-    }
 
-    return 0;
+        iter_num++;
+    }
+    return is_there_cycle;
 }
 
 template <typename T>
 bool DirectFeedbackSetProblem<T>::CycleWithDepthFirstSearch()
 {
-    ListDigraph::NodeMap<bool> VerticesIn(graph_,1);
-    CycleWithDepthFirstSearch(VerticesIn);
-    return 0;
+    ListDigraph::NodeMap<bool> VerticesIn(graph_, 1);
+    return CycleWithDepthFirstSearch(VerticesIn);
 }
 
 template <typename T>
@@ -147,8 +152,8 @@ bool DirectFeedbackSetProblem<T>::DepthFirstSearchStep(int &SZ, int &S, int M, L
     melyseg[current_node] = M;
     M++;
 
-    cout << graph_.id(current_node) << " " << graph_.id(parent[current_node]) << " ";
-    cout << melyseg[current_node] << " " << endl;
+    //cout << graph_.id(current_node) << " " << graph_.id(parent[current_node]) << " ";
+    //cout << melyseg[current_node] << " " << endl;
 
     for (lemon::ListDigraph::OutArcIt a(graph_, current_node); a != INVALID; ++a)
     {
@@ -189,6 +194,15 @@ bool DirectFeedbackSetProblem<T>::AddCycle(ListDigraph::Node &node_from, ListDig
         ready[current_node] = 1;
     }
     cycles_to_dodge_.push_back(newcycle);
+
+    // Print new cycle
+    cout << "New cycle: ";
+    for (auto &pathiter : newcycle)
+    {
+        cout << graph_.id(pathiter) << " ";
+    }
+    cout << endl;
+
     return 0;
 }
 
