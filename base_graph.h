@@ -18,6 +18,8 @@
 #include <lemon/preflow.h>
 #include <lemon/lp.h>
 
+#include "setcover_bc.cc"
+
 using namespace std;
 using namespace lemon;
 
@@ -50,6 +52,7 @@ private:
 	lemon::ListDigraph::NodeMap<int> strongly_connected_comp_{graph_};
 	lemon::ListDigraph::ArcMap<bool> strongly_connected_arcs_{graph_, false};
 	vector<vector<ListDigraph::Node>> cycles_to_dodge_;
+	SetCovering set_cover_solver_;
 
 public:
 	DirectFeedbackSetProblem(istream &is = std::cin);
@@ -74,14 +77,7 @@ public:
 	vector<int> StronglyConnectedSizes();
 	bool IsDAG();
 	int InAndOutGoingArcs(ListDigraph::Node v, int caser = 1);
-	
-	void LoopThroughCycle(ListDigraph::Node from, ListDigraph::Node to, lemon::ListDigraph::NodeMap<ListDigraph::Node> &parents, lemon::ListDigraph::NodeMap<int>& heuristic_cycle_count);
-	void DFSWithLoopHeuristic(lemon::ListDigraph::NodeMap<int>& heuristic_cycle_count);
-	void DepthFirstSearchStep(int &SZ, int &S, ListDigraph::Node current_node, lemon::ListDigraph::NodeMap<int> &reach,
-                                                       lemon::ListDigraph::NodeMap<ListDigraph::Node> &parent, lemon::ListDigraph::NodeMap<int> &processed);
-	bool BackGoingArc(ListDigraph::Arc &arc, ListDigraph::NodeMap<int> &reach, ListDigraph::NodeMap<int> &processed);
-	int HeuristicLargestVerticesDeletion(int caser = 1, int recalculate = 1);
-	
+
 	int DeleteSelfLoops();
 	int DeleteParallelArcs();
 	int DeleteDummyNodes();
@@ -108,6 +104,10 @@ public:
 				  ListDigraph::NodeMap<ListDigraph::Node> &parent, ListDigraph::NodeMap<bool> &ready);
 	void FindBackAndForthEdges();
 	void Find3LongPaths();
+	int rand_numb;
+
+	void BuildSetCoveringModel(int max_iteration);
+	void SolveSetCover();
 
 
 };
